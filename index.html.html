@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KoreFusion Card Database</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f0; color: #1a1a1a; }
+
+.header { background: #1a2332; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; }
+.header h1 { font-size: 18px; font-weight: 600; }
+.header .subtitle { font-size: 12px; color: #8899aa; margin-top: 2px; }
+.header .stats-bar { display: flex; gap: 24px; }
+.header .stat { text-align: center; }
+.header .stat-value { font-size: 22px; font-weight: 700; color: #4fc3f7; }
+.header .stat-label { font-size: 10px; color: #8899aa; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.tabs { background: #1a2332; padding: 0 32px; display: flex; gap: 0; border-top: 1px solid #2a3a4a; }
+.tab { padding: 10px 20px; color: #8899aa; font-size: 13px; font-weight: 500; cursor: pointer; border-bottom: 2px solid transparent; }
+.tab:hover { color: white; }
+.tab.active { color: #4fc3f7; border-bottom-color: #4fc3f7; }
+
+.main { padding: 24px 32px; }
+
+.conn-status { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; display: none; }
+.conn-ok { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+.conn-err { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+
+.filters { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-end; }
+.filter-group { display: flex; flex-direction: column; gap: 4px; }
+.filter-group label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #888; }
+.filter-group select, .filter-group input { padding: 7px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; background: white; min-width: 160px; }
+.filter-group input { min-width: 220px; }
+.btn { padding: 7px 16px; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; }
+.btn-primary { background: #1a2332; color: white; }
+.btn-outline { background: white; color: #666; border: 1px solid #ddd; }
+.results-count { font-size: 13px; color: #888; margin-left: auto; }
+
+.table-wrap { background: white; border-radius: 10px; border: 1px solid #e0e0e0; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th { background: #f8f8f5; padding: 10px 12px; text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; color: #666; border-bottom: 2px solid #e8e8e4; white-space: nowrap; }
+td { padding: 8px 12px; border-bottom: 1px solid #f0f0ec; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+tr:hover { background: #fafaf7; }
+td.empty { color: #ccc; font-style: italic; }
+td a { color: #2563eb; text-decoration: none; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+.tag-ec { background: #e8f5e9; color: #2e7d32; }
+.tag-bjp { background: #e3f2fd; color: #1565c0; }
+.tag-pm { background: #fff8e1; color: #f57f17; }
+
+.gap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.gap-card { background: white; border-radius: 10px; border: 1px solid #e0e0e0; padding: 16px; }
+.gap-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.gap-card .meta { font-size: 12px; color: #888; margin-bottom: 12px; }
+.gap-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.gap-label { font-size: 11px; width: 100px; text-align: right; color: #666; flex-shrink: 0; }
+.gap-bar { flex: 1; height: 16px; background: #f0f0ec; border-radius: 3px; overflow: hidden; }
+.gap-fill { height: 100%; border-radius: 3px; }
+.gap-pct { font-size: 11px; width: 36px; text-align: right; color: #666; flex-shrink: 0; }
+.fill-high { background: #4caf50; }
+.fill-med { background: #ff9800; }
+.fill-low { background: #f44336; }
+
+.pov-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+.pov-card { background: white; border-radius: 10px; border: 1px solid #e0e0e0; padding: 20px; }
+.pov-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+.pov-card .source { font-size: 11px; color: #888; margin-bottom: 12px; }
+.pov-stat { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #f5f5f0; font-size: 13px; }
+
+.loading { text-align: center; padding: 60px; color: #888; }
+.pagination { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
+.pagination .btn.active { background: #1a2332; color: white; }
+
+@media (max-width: 768px) {
+  .header { flex-direction: column; gap: 16px; }
+  .pov-grid { grid-template-columns: 1fr; }
+  .filters { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>KoreFusion Card Database</h1>
+    <div class="subtitle">Card offers knowledge base</div>
+  </div>
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-value" id="s-products">—</div><div class="stat-label">Products</div></div>
+    <div class="stat"><div class="stat-value" id="s-countries">—</div><div class="stat-label">Countries</div></div>
+    <div class="stat"><div class="stat-value" id="s-banks">—</div><div class="stat-label">Banks</div></div>
+    <div class="stat"><div class="stat-value" id="s-projects">—</div><div class="stat-label">Projects</div></div>
+  </div>
+</div>
+
+<div class="tabs" id="tab-bar">
+  <div class="tab active" data-tab="browse">Browse data</div>
+  <div class="tab" data-tab="gaps">Gap analysis</div>
+  <div class="tab" data-tab="pov">POV overview</div>
+</div>
+
+<div class="main">
+  <div class="conn-status" id="conn-status"></div>
+
+  <div id="view-browse">
+    <div class="filters">
+      <div class="filter-group"><label>Country</label><select id="f-country"><option value="">All countries</option></select></div>
+      <div class="filter-group"><label>POV</label><select id="f-pov"><option value="">All POVs</option><option value="Consumer Value Proposition">Consumer</option><option value="Bank Economics">Bank Economics</option><option value="SMB Credit Products">SMB Credit</option></select></div>
+      <div class="filter-group"><label>Product type</label><select id="f-type"><option value="">All types</option><option value="Credit Card">Credit Card</option><option value="Debit Card">Debit Card</option><option value="Revolving Line">Revolving Line</option><option value="Installment Loan">Installment Loan</option></select></div>
+      <div class="filter-group"><label>Search bank/product</label><input type="text" id="f-search" placeholder="e.g. Itau, BBVA..."></div>
+      <div class="filter-group"><label>&nbsp;</label><button class="btn btn-outline" id="btn-clear">Clear</button></div>
+      <div class="results-count" id="results-count"></div>
+    </div>
+    <div class="table-wrap"><table><thead id="t-head"></thead><tbody id="t-body"></tbody></table></div>
+    <div class="pagination" id="pag"></div>
+  </div>
+
+  <div id="view-gaps" style="display:none">
+    <div class="filters">
+      <div class="filter-group"><label>Country</label><select id="f-gap-country"><option value="">All countries</option></select></div>
+    </div>
+    <div class="gap-grid" id="gap-grid"></div>
+  </div>
+
+  <div id="view-pov" style="display:none">
+    <div class="pov-grid" id="pov-grid"></div>
+    <h3 style="font-size:15px;font-weight:600;margin:20px 0 12px">Coverage by project and country</h3>
+    <div class="table-wrap"><table><thead id="c-head"></thead><tbody id="c-body"></tbody></table></div>
+  </div>
+</div>
+
+<script>
+const BASE = 'https://ytawhdeakxmdwkljzcpb.supabase.co/rest/v1';
+const KEY = 'sb_publishable_BaGO1jrXSGZAjJ0T-rHsHA_ksC-gGaa';
+const H = { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' };
+const PS = 50;
+let page = 0, total = 0, timer = null;
+
+function showStatus(msg, ok) {
+  const el = document.getElementById('conn-status');
+  el.textContent = msg;
+  el.className = 'conn-status ' + (ok ? 'conn-ok' : 'conn-err');
+  el.style.display = 'block';
+  if (ok) setTimeout(() => el.style.display = 'none', 4000);
+}
+
+async function api(endpoint) {
+  const url = BASE + '/' + endpoint;
+  console.log('Fetching:', url);
+  const r = await fetch(url, { headers: {...H, 'Prefer': 'count=exact'} });
+  if (!r.ok) {
+    const txt = await r.text();
+    console.error('API Error:', r.status, txt);
+    throw new Error(`${r.status}: ${txt}`);
+  }
+  const range = r.headers.get('content-range');
+  if (range) total = parseInt(range.split('/')[1]) || 0;
+  return r.json();
+}
+
+async function apiSimple(endpoint) {
+  const r = await fetch(BASE + '/' + endpoint, { headers: H });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+function tag(src) {
+  if (!src) return '';
+  const c = src.includes('Essential') ? 'tag-ec' : src.includes('BJP') ? 'tag-bjp' : 'tag-pm';
+  const s = src.replace('Essential Credit','EC').replace('BJP Value Story','BJP VS').replace('Plan Mexico','PM');
+  return '<span class="tag '+c+'">'+s+'</span>';
+}
+function cell(v, url) {
+  if (v == null || v === '') return '<td class="empty">—</td>';
+  if (url) return '<td><a href="'+v+'" target="_blank">link</a></td>';
+  const s = String(v);
+  return '<td title="'+s.replace(/"/g,'&quot;')+'">'+(s.length > 45 ? s.slice(0,42)+'...' : s)+'</td>';
+}
+
+const COLS = [
+  ['source_project','Source',true],['country','Country'],['bank','Bank'],['product_name','Product'],
+  ['product_type','Type'],['card_tier','Tier'],['network','Network'],['segment','Segment'],
+  ['annual_fee','Annual fee'],['interest_rate','Interest rate'],['interchange_rate','Interchange'],
+  ['late_payment_fee','Late fee'],['fx_fee','FX fee'],['benefits_perks','Benefits'],
+  ['eligibility_requirements','Eligibility'],['source_url','Source URL',false,true]
+];
+
+async function init() {
+  try {
+    showStatus('Connecting to Supabase...', true);
+    let allData = [];
+    let offset = 0;
+    const batchSize = 1000;
+    while (true) {
+      const batch = await apiSimple('card_products?select=country,bank,source_project&limit=' + batchSize + '&offset=' + offset);
+      allData = allData.concat(batch);
+      if (batch.length < batchSize) break;
+      offset += batchSize;
+    }
+    const countries = [...new Set(allData.map(d=>d.country).filter(Boolean))].sort();
+    const banks = new Set(allData.map(d=>d.bank).filter(Boolean));
+    const projects = new Set(allData.map(d=>d.source_project).filter(Boolean));
+
+    document.getElementById('s-products').textContent = allData.length.toLocaleString();
+    document.getElementById('s-countries').textContent = countries.length;
+    document.getElementById('s-banks').textContent = banks.size;
+    document.getElementById('s-projects').textContent = projects.size;
+
+    for (const id of ['f-country','f-gap-country']) {
+      const sel = document.getElementById(id);
+      countries.forEach(c => sel.add(new Option(c, c)));
+    }
+
+    showStatus('Connected — ' + allData.length + ' products loaded', true);
+    loadBrowse();
+  } catch(e) {
+    showStatus('Connection error: ' + e.message, false);
+    console.error(e);
+  }
+}
+
+async function loadBrowse() {
+  const body = document.getElementById('t-body');
+  body.innerHTML = '<tr><td colspan="16" class="loading">Loading...</td></tr>';
+
+  let q = 'card_products?select=*&order=country.asc,bank.asc,product_name.asc&offset='+(page*PS)+'&limit='+PS;
+  const fC = document.getElementById('f-country').value;
+  const fP = document.getElementById('f-pov').value;
+  const fT = document.getElementById('f-type').value;
+  const fS = document.getElementById('f-search').value.trim();
+  if (fC) q += '&country=eq.' + encodeURIComponent(fC);
+  if (fP) q += '&pov_type=eq.' + encodeURIComponent(fP);
+  if (fT) q += '&product_type=eq.' + encodeURIComponent(fT);
+  if (fS) q += '&or=(bank.ilike.*'+encodeURIComponent(fS)+'*,product_name.ilike.*'+encodeURIComponent(fS)+'*)';
+
+  try {
+    const data = await api(q);
+    document.getElementById('t-head').innerHTML = '<tr>'+COLS.map(c=>'<th>'+c[1]+'</th>').join('')+'</tr>';
+    if (!data.length) { body.innerHTML = '<tr><td colspan="16" class="loading">No results</td></tr>'; }
+    else {
+      body.innerHTML = data.map(r => '<tr>'+COLS.map(c => {
+        if (c[2]) return '<td>'+tag(r[c[0]])+'</td>';
+        return cell(r[c[0]], c[3]);
+      }).join('')+'</tr>').join('');
+    }
+    document.getElementById('results-count').textContent = total.toLocaleString() + ' results';
+    renderPag();
+  } catch(e) { body.innerHTML = '<tr><td colspan="16" class="loading" style="color:red">Error: '+e.message+'</td></tr>'; }
+}
+
+function renderPag() {
+  const pages = Math.ceil(total/PS);
+  if (pages <= 1) { document.getElementById('pag').innerHTML = ''; return; }
+  let h = '';
+  if (page > 0) h += '<button class="btn btn-outline" onclick="goP('+(page-1)+')">Prev</button>';
+  const s = Math.max(0, page-3), e = Math.min(pages, s+7);
+  for (let i=s; i<e; i++) h += '<button class="btn '+(i===page?'btn-primary active':'btn-outline')+'" onclick="goP('+i+')">'+(i+1)+'</button>';
+  if (page < pages-1) h += '<button class="btn btn-outline" onclick="goP('+(page+1)+')">Next</button>';
+  document.getElementById('pag').innerHTML = h;
+}
+function goP(p) { page = p; loadBrowse(); }
+
+async function loadGaps() {
+  const grid = document.getElementById('gap-grid');
+  grid.innerHTML = '<div class="loading">Loading...</div>';
+  try {
+    let q = 'gap_analysis_by_country?select=*';
+    const fc = document.getElementById('f-gap-country').value;
+    if (fc) q += '&country=eq.' + encodeURIComponent(fc);
+    const data = await apiSimple(q);
+    const fields = [
+      ['pct_card_tier','Card tier'],['pct_network','Network'],['pct_segment','Segment'],
+      ['pct_source_url','Source URL'],['pct_annual_fee','Annual fee'],['pct_interest_rate','Interest rate'],
+      ['pct_interchange_rate','Interchange'],['pct_late_fee','Late fee'],['pct_fx_fee','FX fee'],
+      ['pct_eligibility','Eligibility'],['pct_benefits','Benefits'],['pct_min_income','Min income']
+    ];
+    grid.innerHTML = data.sort((a,b)=>b.total_products-a.total_products).map(r => {
+      const bars = fields.map(([k,l]) => {
+        const p = r[k]||0;
+        const cls = p>=70?'fill-high':p>=30?'fill-med':'fill-low';
+        return '<div class="gap-bar-row"><div class="gap-label">'+l+'</div><div class="gap-bar"><div class="gap-fill '+cls+'" style="width:'+p+'%"></div></div><div class="gap-pct">'+p+'%</div></div>';
+      }).join('');
+      return '<div class="gap-card"><h3>'+r.country+'</h3><div class="meta">'+r.total_products+' products</div>'+bars+'</div>';
+    }).join('');
+    if (!data.length) grid.innerHTML = '<div class="loading">No data from this view. Check if gap_analysis_by_country view exists in Supabase.</div>';
+  } catch(e) { grid.innerHTML = '<div class="loading" style="color:red">Error loading gaps: '+e.message+'<br><br>This might mean the view gap_analysis_by_country was not created. Run 01_schema.sql first.</div>'; }
+}
+
+async function loadPOV() {
+  try {
+    const data = await apiSimple('pov_summary?select=*');
+    const colors = {'Consumer Value Proposition':'#2e7d32','Bank Economics':'#1565c0','SMB Credit Products':'#f57f17'};
+    const sources = {'Consumer Value Proposition':'Essential Credit','Bank Economics':'BJP (4 files)','SMB Credit Products':'Plan Mexico'};
+    document.getElementById('pov-grid').innerHTML = data.map(r => {
+      const stats = [['Products',r.total_products],['Countries',r.countries],['Banks',r.banks],
+        ['Annual fee',r.pct_annual_fee+'%'],['Interest rate',r.pct_interest_rate+'%'],['Interchange',r.pct_interchange+'%'],
+        ['Eligibility',r.pct_eligibility+'%'],['Benefits',r.pct_benefits+'%'],['Source URL',r.pct_source_url+'%'],
+        ['Network',r.pct_network+'%'],['FX fee',r.pct_fx_fee+'%']];
+      return '<div class="pov-card" style="border-top:3px solid '+(colors[r.pov_type]||'#888')+'"><h3>'+r.pov_type+'</h3><div class="source">'+(sources[r.pov_type]||'')+'</div>'+stats.map(([k,v])=>'<div class="pov-stat"><span>'+k+'</span><strong>'+v+'</strong></div>').join('')+'</div>';
+    }).join('');
+
+    const cov = await apiSimple('coverage_by_project?select=*&order=country.asc,source_project.asc');
+    document.getElementById('c-head').innerHTML = '<tr><th>Country</th><th>Project</th><th>POV</th><th>Products</th><th>Banks</th><th>Credit cards</th><th>Debit cards</th></tr>';
+    document.getElementById('c-body').innerHTML = cov.map(r=>'<tr><td><strong>'+r.country+'</strong></td><td>'+tag(r.source_project)+'</td><td>'+r.pov_type+'</td><td>'+r.products+'</td><td>'+r.banks+'</td><td>'+(r.credit_cards||0)+'</td><td>'+(r.debit_cards||0)+'</td></tr>').join('');
+  } catch(e) { document.getElementById('pov-grid').innerHTML = '<div class="loading" style="color:red">Error: '+e.message+'</div>'; }
+}
+
+document.getElementById('tab-bar').addEventListener('click', e => {
+  if (!e.target.dataset.tab) return;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  e.target.classList.add('active');
+  ['browse','gaps','pov'].forEach(t => document.getElementById('view-'+t).style.display = t===e.target.dataset.tab?'':'none');
+  if (e.target.dataset.tab === 'gaps') loadGaps();
+  if (e.target.dataset.tab === 'pov') loadPOV();
+});
+
+document.getElementById('f-country').addEventListener('change', () => { page=0; loadBrowse(); });
+document.getElementById('f-pov').addEventListener('change', () => { page=0; loadBrowse(); });
+document.getElementById('f-type').addEventListener('change', () => { page=0; loadBrowse(); });
+document.getElementById('f-search').addEventListener('keyup', () => { clearTimeout(timer); timer=setTimeout(()=>{page=0;loadBrowse();},400); });
+document.getElementById('btn-clear').addEventListener('click', () => { ['f-country','f-pov','f-type'].forEach(id=>document.getElementById(id).value=''); document.getElementById('f-search').value=''; page=0; loadBrowse(); });
+document.getElementById('f-gap-country').addEventListener('change', loadGaps);
+
+init();
+</script>
+</body>
+</html>
